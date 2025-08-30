@@ -79,7 +79,7 @@ resource "aws_s3_bucket_notification" "recordings_sqs_notification" {
   queue {
     queue_arn     = var.sqs_queue_arn
     events        = ["s3:ObjectCreated:*"]
-    filter_suffix = ".mp3,.wav,.m4a" # You can expand this or create multiple blocks for .wav, .m4a etc.
+    filter_suffix = ".mp3,.wav,.m4a,.mp4" # You can expand this or create multiple blocks for .wav, .m4a etc.
   }
 
   # This depends on the SQS queue having a policy that allows S3 to send messages to it.
