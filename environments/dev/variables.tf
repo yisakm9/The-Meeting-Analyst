@@ -15,7 +15,7 @@ variable "project_name" {
 variable "environment" {
   description = "The name of the deployment environment."
   type        = string
-  default     = "dev"
+  default     = "development"
 }
 
 variable "tags" {
