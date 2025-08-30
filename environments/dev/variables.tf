@@ -21,7 +21,9 @@ variable "environment" {
 variable "tags" {
   description = "A map of common tags to apply to all resources."
   type        = map(string)
-  default     = "dev"
+  default     =  {
+    "Environment" = "dev"
+  }
 
 }
 
