@@ -55,3 +55,8 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "s3_output_bucket_name" {
+  description = "The name of the S3 bucket where Transcribe will save its output."
+  type        = string
+}

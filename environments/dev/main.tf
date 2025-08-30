@@ -63,4 +63,5 @@ module "lambda_function" {
   lambda_execution_role_arn = module.iam.lambda_execution_role_arn
   sqs_processing_queue_arn  = module.sqs.queue_arn
   source_code_path          = "../../src/lambda summarizer"
+  s3_output_bucket_name     = module.s3.recordings_bucket_id
 }

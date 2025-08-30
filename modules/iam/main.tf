@@ -70,3 +70,51 @@ resource "aws_iam_role_policy_attachment" "attach_lambda_permissions" {
   role       = aws_iam_role.lambda_execution_role.name
   policy_arn = aws_iam_policy.lambda_permissions_policy.arn
 }
+
+# ... (aws_iam_role and assume_role_policy are unchanged) ...
+
+# This data source constructs the "Permissions Policy" for our role.
+data "aws_iam_policy_document" "lambda_permissions_policy" {
+  # Standard permissions for Lambda to write logs to CloudWatch
+  statement {
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = ["arn:aws:logs:*:*:*"]
+  }
+
+  # Permissions for SQS
+  statement {
+    effect = "Allow"
+    actions = [
+      "sqs:ReceiveMessage",
+      "sqs:DeleteMessage",
+      "sqs:GetQueueAttributes"
+    ]
+    resources = [var.sqs_processing_queue_arn]
+  }
+
+  # Permission for S3
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject"
+    ]
+    resources = ["${var.s3_recordings_bucket_arn}/*"]
+  }
+  
+  # --- NEW ---
+  # Permission to start an Amazon Transcribe job.
+  # The resource is "*" because the ARN for a transcription job is not known
+  # until after it has been created.
+  statement {
+    effect    = "Allow"
+    actions   = ["transcribe:StartTranscriptionJob"]
+    resources = ["*"]
+  }
+}
+
+# ... (aws_iam_policy and aws_iam_role_policy_attachment are unchanged) ...

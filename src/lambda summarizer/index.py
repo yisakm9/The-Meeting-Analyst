@@ -3,46 +3,55 @@
 import json
 import urllib.parse
 import boto3
+import os
+import uuid
 
 print('Loading function')
 
 s3 = boto3.client('s3')
+transcribe = boto3.client('transcribe')
+
+# Get environment variables
+OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET_NAME']
 
 def handler(event, context):
     """
-    This function is triggered by an SQS message that contains an S3 event notification.
-    It extracts the bucket name and object key from the event and prepares for processing.
+    This function is triggered by SQS. It extracts the S3 object details
+    and starts an asynchronous transcription job with Amazon Transcribe.
     """
     print("Received event: " + json.dumps(event, indent=2))
 
     for sqs_record in event['Records']:
-        # The actual S3 event notification is a JSON string inside the 'body' of the SQS message
         s3_event = json.loads(sqs_record['body'])
 
         if 'Records' in s3_event:
             for s3_record in s3_event['Records']:
-                # Extract bucket and key from the S3 event record
                 bucket = s3_record['s3']['bucket']['name']
-                
-                # The object key may have URL-encoded characters (e.g., spaces as '+')
                 key = urllib.parse.unquote_plus(s3_record['s3']['object']['key'], encoding='utf-8')
                 
-                print(f"File found in S3: s3://{bucket}/{key}")
+                media_file_uri = f"s3://{bucket}/{key}"
+                job_name = f"transcription-job-{uuid.uuid4()}" # Create a unique job name
 
-                # --- TODO ---
-                # 1. Add logic to start an Amazon Transcribe job using the bucket and key.
-                #    This will likely be an asynchronous call.
-                #
-                # 2. In a separate Lambda (triggered by a Transcribe job completion event),
-                #    retrieve the transcript.
-                #
-                # 3. Send the transcript to Amazon Bedrock for summarization.
-                #
-                # 4. Store the transcript and summary in DynamoDB.
-                #
-                # 5. Send a notification via SNS.
-                
+                print(f"Starting transcription job '{job_name}' for file: {media_file_uri}")
+
+                try:
+                    # Make the API call to start the transcription job
+                    transcribe.start_transcription_job(
+                        TranscriptionJobName=job_name,
+                        Media={'MediaFileUri': media_file_uri},
+                        MediaFormat=key.split('.')[-1],  # Assumes format is in file extension (e.g., mp3)
+                        LanguageCode='en-US', # Or make this configurable
+                        OutputBucketName=OUTPUT_BUCKET,
+                        OutputKey=f"transcripts/{job_name}.json" # Save transcripts in a subfolder
+                    )
+                    print(f"Successfully started transcription job.")
+
+                except Exception as e:
+                    print(f"Error starting transcription job: {e}")
+                    # Re-raise the exception to signal failure to SQS, allowing for retries
+                    raise e
+                    
     return {
         'statusCode': 200,
-        'body': json.dumps('Processing started successfully')
+        'body': json.dumps('Transcription jobs started successfully')
     }

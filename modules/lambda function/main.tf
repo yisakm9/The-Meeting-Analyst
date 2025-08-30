@@ -18,7 +18,14 @@ resource "aws_lambda_function" "summarizer" {
   
   filename         = data.archive_file.lambda_package.output_path
   source_code_hash = data.archive_file.lambda_package.output_base64sha256
-
+# --- NEW ---
+  # Pass the S3 bucket name to the function as an environment variable
+  environment {
+    variables = {
+      OUTPUT_BUCKET_NAME = var.s3_output_bucket_name
+    }
+  }
+  
   tags = merge(
     var.tags,
     {
