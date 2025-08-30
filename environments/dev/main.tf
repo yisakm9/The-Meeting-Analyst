@@ -55,12 +55,12 @@ module "sqs" {
 # from the IAM and SQS modules.
 
 module "lambda_function" {
-  source = "../../modules/lambda_function"
+  source = "../../modules/lambda function"
 
   project_name              = var.project_name
   environment               = var.environment
   tags                      = var.tags
   lambda_execution_role_arn = module.iam.lambda_execution_role_arn
   sqs_processing_queue_arn  = module.sqs.queue_arn
-  source_code_path          = "../../src/lambda_summarizer"
+  source_code_path          = "../../src/lambda summarizer"
 }
