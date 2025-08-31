@@ -8,14 +8,13 @@ print('Loading function')
 
 s3 = boto3.client('s3')
 transcribe = boto3.client('transcribe')
-# --- ADDITION 1: Bedrock Runtime Client ---
-# Use the 'bedrock-runtime' client for model invocation
 bedrock_runtime = boto3.client('bedrock-runtime')
 
 def handler(event, context):
     """
     This function is triggered by EventBridge, retrieves a transcript,
-    sends it to Amazon Bedrock for summarization, and logs the result.
+    sends it to Amazon Bedrock using the Llama 3 model for summarization,
+    and logs the result.
     """
     print("Received event: " + json.dumps(event, indent=2))
 
@@ -37,55 +36,43 @@ def handler(event, context):
             bucket = parsed_url.path.lstrip('/').split('/')[0]
             key = '/'.join(parsed_url.path.lstrip('/').split('/')[1:])
             
-            print(f"Correctly parsed transcript location -> Bucket: [{bucket}], Key: [{key}]")
-
+            print(f"Retrieving transcript from Bucket: [{bucket}], Key: [{key}]")
             response = s3.get_object(Bucket=bucket, Key=key)
             transcript_content = response['Body'].read().decode('utf-8')
             transcript_json = json.loads(transcript_content)
-            
             full_transcript = transcript_json['results']['transcripts'][0]['transcript']
             
-            print("--- Full Transcript Retrieved Successfully ---")
-            # The '...' is removed because we will now process the full text.
+            print("--- Transcript Retrieved Successfully ---")
 
             # ======================================================================
-            # --- ADDITION 2: Bedrock Integration Logic ---
+            # --- MODIFICATION: Bedrock Integration for Llama 3 ---
             # ======================================================================
             
-            print("--- Sending transcript to Amazon Bedrock for summarization ---")
+            print("--- Sending transcript to Amazon Bedrock (Llama 3) for summarization ---")
             
-            # This is our prompt to the AI model. We are asking it to act as an assistant
-            # and extract specific, structured information from the transcript.
+            # Llama 3 uses a specific instruction format with special tokens.
+            # We construct the prompt with system, user, and assistant roles.
             prompt = f"""
-            Human: You are a helpful meeting assistant. Please analyze the following meeting transcript and provide a summary in three distinct sections:
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
-            1.  **Summary:** A brief, one-paragraph summary of the meeting's purpose and key outcomes.
-            2.  **Key Decisions:** A bulleted list of all major decisions that were made.
-            3.  **Action Items:** A bulleted list of all specific action items, and who they were assigned to if mentioned.
+You are a helpful meeting assistant. Your task is to analyze the meeting transcript provided by the user and create a summary with three specific sections: "Summary", "Key Decisions", and "Action Items". Format your entire response using Markdown.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
-            Here is the transcript:
-            <transcript>
-            {full_transcript}
-            </transcript>
+Please analyze the following transcript and generate the summary as requested:
+<transcript>
+{full_transcript}
+</transcript><|eot_id|><|start_header_id|>assistant<|end_header_id|>
+"""
 
-            Assistant:
-            """
-
-            # Structure the request body according to the model's requirements
-            # (Claude 3 uses the "messages" format)
+            # Structure the request body according to the Llama 3 model's requirements
             request_body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 4096,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [{"type": "text", "text": prompt}]
-                    }
-                ]
+                "prompt": prompt,
+                "max_gen_len": 2048,  # Max tokens to generate
+                "temperature": 0.5,   # Controls randomness. 0.5 is a good balance.
+                "top_p": 0.9          # Nucleus sampling
             }
 
-            # Invoke the model
-            model_id = 'anthropic.claude-3-sonnet-20240229-v1:0'
+            # Invoke the Llama 3 model
+            model_id = 'meta.llama3-70b-instruct-v1:0'
             response = bedrock_runtime.invoke_model(
                 body=json.dumps(request_body),
                 contentType='application/json',
@@ -93,20 +80,16 @@ def handler(event, context):
                 modelId=model_id
             )
 
-            # Parse the response from the model
+            # Parse the response from the Llama 3 model
             response_body = json.loads(response.get('body').read())
-            summary = response_body.get('content')[0].get('text')
+            summary = response_body.get('generation') # Llama 3's output is in the 'generation' key
 
-            print("--- Bedrock Summary Received Successfully ---")
+            print("--- Bedrock Llama 3 Summary Received Successfully ---")
             print(summary)
-            print("---------------------------------------------")
-
-            # --- TODO ---
-            # 1. Store the `full_transcript` and `summary` in DynamoDB.
-            # 2. Send a notification via SNS containing the summary.
+            print("-----------------------------------------------------")
 
         except Exception as e:
-            print(f"Error processing transcript for job '{job_name}': {e}")
+            print(f"Error processing job '{job_name}': {e}")
             raise e
 
     return {
