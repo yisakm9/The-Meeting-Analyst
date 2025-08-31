@@ -88,4 +88,3 @@ module "sns" {
   tags                       = var.tags
   subscription_email_address = var.subscription_email # <-- From tfvars
 }
-

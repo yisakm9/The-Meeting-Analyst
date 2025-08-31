@@ -27,3 +27,9 @@ variable "tags" {
 
 }
 
+variable "subscription_email" {
+  description = "Email address to subscribe to SNS notifications for this environment (set via tfvars)"
+  type        = string
+  default     = "yisakmesifin@gmail.com"
+}
+
