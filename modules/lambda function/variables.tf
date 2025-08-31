@@ -84,3 +84,9 @@ variable "dynamodb_table_name" {
   type        = string
   default     = "" # Default to empty string
 }
+
+variable "sns_topic_arn" {
+  description = "The ARN of the SNS topic for notifications."
+  type        = string
+  default     = ""
+}

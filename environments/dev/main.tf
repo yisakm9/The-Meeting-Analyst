@@ -68,6 +68,7 @@ module "lambda_function" {
   s3_output_bucket_name     = module.s3.recordings_bucket_id
   transcribe_data_access_role_arn  = module.iam.transcribe_data_access_role_arn # <-- RENAMED
   dynamodb_table_name          = module.dynamodb.table_name # <-- NEW
+  sns_topic_arn                = module.sns.topic_arn 
 }
 
 # --- NEW: DynamoDB Table for Transcripts ---

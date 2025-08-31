@@ -68,7 +68,8 @@ resource "aws_lambda_function" "processor" {
   # }
   environment {
     variables = {
-      DYNAMODB_TABLE_NAME = var.dynamodb_table_name
+      DYNAMODB_TABLE_NAME = var.dynamodb_table_name,
+      SNS_TOPIC_ARN       = var.sns_topic_arn
     }
   }
   
