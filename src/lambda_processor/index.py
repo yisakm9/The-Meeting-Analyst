@@ -8,57 +8,61 @@ import os
 print('Loading function')
 
 s3 = boto3.client('s3')
-
-# Get environment variables (will be used in later steps)
-# DYNAMODB_TABLE = os.environ['DYNAMODB_TABLE_NAME']
-# SNS_TOPIC_ARN = os.environ['SNS_TOPIC_ARN']
+transcribe = boto3.client('transcribe') # Add transcribe client
 
 def handler(event, context):
     """
-    This function is triggered by an EventBridge rule when a Transcribe job is complete.
-    It retrieves the transcript, and will eventually send it to Bedrock.
+    This function is triggered by EventBridge when a Transcribe job is complete.
+    It retrieves the job details, fetches the transcript, and prepares for summarization.
     """
     print("Received event: " + json.dumps(event, indent=2))
 
-    # EventBridge event 'detail' contains information about the completed job
+    # The job status is in the event, handle failures gracefully
+    job_status = event['detail']['TranscriptionJobStatus']
     job_name = event['detail']['TranscriptionJobName']
-    
-    # The transcript file location is provided in the event
-    transcript_uri = event['detail']['Transcript']['TranscriptFileUri']
-    
-    # The URI is in the format: "s3://bucket-name/path/to/transcript.json"
-    # We need to parse the bucket and key from this URI
-    parsed_uri = urllib.parse.urlparse(transcript_uri)
-    bucket = parsed_uri.netloc
-    key = parsed_uri.path.lstrip('/') # Remove leading '/'
 
-    print(f"Transcript for job '{job_name}' is located at: s3://{bucket}/{key}")
+    if job_status == 'FAILED':
+        print(f"Transcription job '{job_name}' failed. Reason: {event['detail']['FailureReason']}")
+        # You could send a notification here or just stop processing
+        return
 
-    try:
-        # Fetch the transcript file from S3
-        response = s3.get_object(Bucket=bucket, Key=key)
-        transcript_content = response['Body'].read().decode('utf-8')
+    if job_status == 'COMPLETED':
+        print(f"Transcription job '{job_name}' completed successfully.")
         
-        # The content is a large JSON object from Transcribe
-        transcript_json = json.loads(transcript_content)
-        
-        # Extract the actual transcript text
-        full_transcript = transcript_json['results']['transcripts'][0]['transcript']
-        
-        print("--- Full Transcript ---")
-        print(full_transcript)
-        print("-----------------------")
+        try:
+            # *** FIX STARTS HERE ***
+            # Make an API call to get the full job details
+            job_details = transcribe.get_transcription_job(TranscriptionJobName=job_name)
+            
+            # The transcript URI is located within the response object
+            transcript_uri = job_details['TranscriptionJob']['Transcript']['TranscriptFileUri']
+            # *** FIX ENDS HERE ***
 
-        # --- TODO ---
-        # 1. Send the `full_transcript` text to Amazon Bedrock for summarization.
-        # 2. Store the transcript and summary in DynamoDB.
-        # 3. Send a notification via SNS.
+            # The rest of the logic is the same as before
+            parsed_uri = urllib.parse.urlparse(transcript_uri)
+            bucket = parsed_uri.netloc
+            key = parsed_uri.path.lstrip('/')
 
-    except Exception as e:
-        print(f"Error processing transcript from S3: {e}")
-        raise e
+            print(f"Transcript for job '{job_name}' is located at: s3://{bucket}/{key}")
+
+            response = s3.get_object(Bucket=bucket, Key=key)
+            transcript_content = response['Body'].read().decode('utf-8')
+            transcript_json = json.loads(transcript_content)
+            
+            full_transcript = transcript_json['results']['transcripts'][0]['transcript']
+            
+            print("--- Full Transcript ---")
+            print(full_transcript)
+            print("-----------------------")
+
+            # --- TODO ---
+            # 1. Send `full_transcript` to Bedrock.
+
+        except Exception as e:
+            print(f"Error processing transcript for job '{job_name}': {e}")
+            raise e
 
     return {
         'statusCode': 200,
-        'body': json.dumps(f"Successfully processed transcript for job: {job_name}")
+        'body': json.dumps(f"Successfully processed event for job: {job_name}")
     }

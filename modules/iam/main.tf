@@ -66,7 +66,10 @@ data "aws_iam_policy_document" "lambda_permissions_policy" {
   # until after it has been created.
   statement {
     effect    = "Allow"
-    actions   = ["transcribe:StartTranscriptionJob"]
+    actions   = ["transcribe:StartTranscriptionJob",        # Start a transcription job (submit new job to Transcribe
+                 "transcribe:GetTranscriptionJob",           # Retrieve the details and status of a specific transcription job
+                #"transcribe:ListTranscriptionJobs"         # List transcription jobs (useful for discovery or pagination
+               ]
     resources = ["*"]
   }
 }
