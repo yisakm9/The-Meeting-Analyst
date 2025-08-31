@@ -2,6 +2,7 @@
 
 import json
 import boto3
+from urllib.parse import urlparse
 
 print('Loading function')
 
@@ -11,7 +12,8 @@ transcribe = boto3.client('transcribe')
 def handler(event, context):
     """
     This function is triggered by EventBridge when a Transcribe job is complete.
-    It retrieves the job details, fetches the transcript, and prepares for summarization.
+    It retrieves the job details, correctly parses the S3 URI from the HTTPS URL,
+    fetches the transcript, and prepares for summarization.
     """
     print("Received event: " + json.dumps(event, indent=2))
 
@@ -28,25 +30,19 @@ def handler(event, context):
         try:
             job_details = transcribe.get_transcription_job(TranscriptionJobName=job_name)
             
+            # The URI is a standard HTTPS URL, not an S3 URI.
+            https_uri = job_details['TranscriptionJob']['Transcript']['TranscriptFileUri']
+            
             # *** THE FIX IS HERE ***
-            # Instead of parsing the complex URI, we use the direct fields from the API response.
-            # This is far more reliable.
-            transcript_reference = job_details['TranscriptionJob']['Transcript']
+            # We use urlparse to correctly break down the HTTPS URL.
+            parsed_url = urlparse(https_uri)
             
-            # The API provides two ways to get the transcript. We prioritize the direct key.
-            if 'RedactedTranscriptFileUri' in transcript_reference:
-                # Handle redacted transcripts if you use that feature
-                transcript_uri = transcript_reference['RedactedTranscriptFileUri']
-            else:
-                transcript_uri = transcript_reference['TranscriptFileUri']
-
-            # Let's parse the URI robustly this time, by splitting
-            # s3://bucket/key...
-            parts = transcript_uri.replace("s3://", "").split("/", 1)
-            bucket = parts[0]
-            key = parts[1]
+            # The bucket name is the first part of the path, and the key is the rest.
+            # Example path: /bucket-name/transcripts/job-name.json
+            bucket = parsed_url.path.lstrip('/').split('/')[0]
+            key = '/'.join(parsed_url.path.lstrip('/').split('/')[1:])
             
-            print(f"Transcript for job '{job_name}' is located at: s3://{bucket}/{key}")
+            print(f"Correctly parsed transcript location -> Bucket: [{bucket}], Key: [{key}]")
 
             response = s3.get_object(Bucket=bucket, Key=key)
             transcript_content = response['Body'].read().decode('utf-8')
@@ -54,12 +50,10 @@ def handler(event, context):
             
             full_transcript = transcript_json['results']['transcripts'][0]['transcript']
             
-            print("--- Full Transcript ---")
-            print(full_transcript)
-            print("-----------------------")
+            print("--- Full Transcript Retrieved Successfully ---")
+            print(full_transcript[:500] + "...") # Print first 500 chars
 
-            # --- TODO ---
-            # 1. Send `full_transcript` to Bedrock.
+            # --- TODO: Bedrock Integration ---
 
         except Exception as e:
             print(f"Error processing transcript for job '{job_name}': {e}")
