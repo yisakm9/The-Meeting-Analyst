@@ -124,6 +124,15 @@ resource "aws_iam_role" "transcribe_service_role" {
 # This policy grants the role permission to write objects (the transcripts)
 # to our specific S3 bucket.
 data "aws_iam_policy_document" "transcribe_permissions_policy" {
+   
+   statement {
+    effect    = "Allow"
+    actions   = [
+      "s3:GetObject"
+      ]
+    resources = ["${var.s3_recordings_bucket_arn}/*"]
+  }
+
   statement {
     effect = "Allow"
     actions = [
@@ -131,6 +140,7 @@ data "aws_iam_policy_document" "transcribe_permissions_policy" {
     ]
     resources = ["${var.s3_recordings_bucket_arn}/transcripts/*"] # Be specific about the output path
   }
+ 
 }
 
 # Create the IAM policy resource.
