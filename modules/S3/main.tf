@@ -85,7 +85,7 @@ resource "aws_s3_bucket_notification" "recordings_sqs_notification" {
     # This depends on the SQS queue having a policy that allows S3 to send messages to it.
     # We will create that policy in the SQS module.
 }
-# --- NEW: S3 to SQS Notification ---
+# --- NEW: S3 to SQS Notification i used it to debug now i do need it ---
 # This "linking" resource now lives in the root module for the environment.
 # It depends on both the S3 bucket and the SQS queue having been created.
 /*
