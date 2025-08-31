@@ -78,3 +78,14 @@ module "dynamodb" {
   environment  = var.environment
   tags         = var.tags
 }
+
+# --- NEW: SNS Topic ---
+module "sns" {
+  source = "../../modules/SNS"
+
+  project_name               = var.project_name
+  environment                = var.environment
+  tags                       = var.tags
+  subscription_email_address = var.subscription_email # <-- From tfvars
+}
+

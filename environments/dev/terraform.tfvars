@@ -9,3 +9,5 @@ tags = {
   Environment = "dev"
   ManagedBy   = "Terraform"
 }
+
+subscription_email = "yisakmesifin@gmail.com" # <-- REPLACE WITH YOUR EMAIL

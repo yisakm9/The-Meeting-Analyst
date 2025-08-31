@@ -105,7 +105,22 @@ data "aws_iam_policy_document" "lambda_permissions_policy" {
     ]
     resources = [var.dynamodb_table_arn]
   }
-  
+
+  # Correct way to conditionally add the SNS:Publish permission
+  dynamic "statement" {
+    # This for_each creates a list with one item if the condition is true,
+    # and an empty list if it's false. The dynamic block then iterates over it.
+    for_each = var.sns_topic_arn != "" ? [var.sns_topic_arn] : []
+
+    content {
+      effect = "Allow"
+      actions = [
+        "sns:Publish"
+      ]
+      # statement.value is the value from the for_each list (the ARN itself)
+      resources = [statement.value]
+    }
+  }
 }
 
 # Create the IAM Policy resource from the policy document
