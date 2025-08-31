@@ -9,7 +9,9 @@ data "aws_iam_policy_document" "lambda_assume_role_policy" {
 
     principals {
       type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
+      identifiers = ["lambda.amazonaws.com",
+                     "transcribe.amazonaws.com" # <-- NEW
+      ]
     }
   }
 }
@@ -52,7 +54,8 @@ data "aws_iam_policy_document" "lambda_permissions_policy" {
   statement {
     effect = "Allow"
     actions = [
-      "s3:GetObject"
+      "s3:GetObject", # For reading the source audio
+      "s3:PutObject"  # For Transcribe to write the output transcript
     ]
     resources = ["${var.s3_recordings_bucket_arn}/*"]
   }
