@@ -60,3 +60,16 @@ variable "s3_output_bucket_name" {
   description = "The name of the S3 bucket where Transcribe will save its output."
   type        = string
 }
+
+#  ( new variables)
+
+variable "processor_source_code_path" {
+  description = "The local path to the processor Lambda's source code."
+  type        = string
+}
+
+variable "processor_handler" {
+  description = "The function entrypoint for the processor Lambda."
+  type        = string
+  default     = "index.handler"
+}
