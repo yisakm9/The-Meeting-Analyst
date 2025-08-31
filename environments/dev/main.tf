@@ -16,7 +16,8 @@ module "iam" {
   tags                     = var.tags
   s3_recordings_bucket_arn = module.s3.recordings_bucket_arn
   sqs_processing_queue_arn = module.sqs.queue_arn
-  dynamodb_table_arn = module.dynamodb.table_arn # <-- NEW
+  dynamodb_table_arn = module.dynamodb.table_arn
+  sns_topic_arn            = module.sns.topic_arn 
 }
 
 
