@@ -79,7 +79,11 @@ resource "aws_s3_bucket_notification" "recordings_sqs_notification" {
   queue {
     queue_arn     = var.sqs_queue_arn
     events        = ["s3:ObjectCreated:*"]
-    filter_suffix = "" # You can expand this or create multiple blocks for .wav, .m4a etc.
+    # --- UPDATED ---
+    # Add a filter to IGNORE objects created in the 'transcripts/' folder
+    # This prevents the recursive loop. We only want to process root uploads.
+    filter_prefix = "" # An empty prefix means it applies to the root
+    filter_suffix = ".mp3" # You can expand this or create multiple blocks for .wav, .m4a etc.
   }
 
     # This depends on the SQS queue having a policy that allows S3 to send messages to it.
