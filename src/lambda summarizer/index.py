@@ -31,19 +31,19 @@ def handler(event, context):
                 key = urllib.parse.unquote_plus(s3_record['s3']['object']['key'], encoding='utf-8')
                 
                 media_file_uri = f"s3://{bucket}/{key}"
-                # Create a unique job name that is also a valid S3 object name
                 job_name = f"transcription-job-{uuid.uuid4()}"
 
                 print(f"Starting transcription job '{job_name}' for file: {media_file_uri}")
 
                 try:
-                    # The DataAccessRoleArn must be nested inside JobExecutionSettings
+                    # *** FIX STARTS HERE ***
+                    # The JobExecutionSettings dictionary only needs the DataAccessRoleArn.
+                    # The "AllowRedirection" parameter is not valid for this API call.
                     job_execution_settings = {
-                        'AllowRedirection': True, # Best practice when dealing with S3 URIs
                         'DataAccessRoleArn': TRANSCRIBE_DATA_ACCESS_ROLE_ARN
                     }
+                    # *** FIX ENDS HERE ***
 
-                    # Make the API call to start the transcription job with the correct structure
                     transcribe.start_transcription_job(
                         TranscriptionJobName=job_name,
                         Media={'MediaFileUri': media_file_uri},
@@ -58,7 +58,6 @@ def handler(event, context):
 
                 except Exception as e:
                     print(f"Error starting transcription job: {e}")
-                    # Re-raise the exception to signal failure to SQS, allowing for retries
                     raise e
                     
     return {
