@@ -36,13 +36,12 @@ def handler(event, context):
                 print(f"Starting transcription job '{job_name}' for file: {media_file_uri}")
 
                 try:
-                    # *** FIX STARTS HERE ***
-                    # The JobExecutionSettings dictionary only needs the DataAccessRoleArn.
-                    # The "AllowRedirection" parameter is not valid for this API call.
+                    # This dictionary contains the role that gives Transcribe permission
+                    # to read from and write to our S3 bucket on our behalf.
+                    # This ensures WE own the output file.
                     job_execution_settings = {
                         'DataAccessRoleArn': TRANSCRIBE_DATA_ACCESS_ROLE_ARN
                     }
-                    # *** FIX ENDS HERE ***
 
                     transcribe.start_transcription_job(
                         TranscriptionJobName=job_name,
