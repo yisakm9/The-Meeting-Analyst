@@ -8,12 +8,14 @@ print('Loading function')
 
 s3 = boto3.client('s3')
 transcribe = boto3.client('transcribe')
+# --- ADDITION 1: Bedrock Runtime Client ---
+# Use the 'bedrock-runtime' client for model invocation
+bedrock_runtime = boto3.client('bedrock-runtime')
 
 def handler(event, context):
     """
-    This function is triggered by EventBridge when a Transcribe job is complete.
-    It retrieves the job details, correctly parses the S3 URI from the HTTPS URL,
-    fetches the transcript, and prepares for summarization.
+    This function is triggered by EventBridge, retrieves a transcript,
+    sends it to Amazon Bedrock for summarization, and logs the result.
     """
     print("Received event: " + json.dumps(event, indent=2))
 
@@ -29,16 +31,9 @@ def handler(event, context):
         
         try:
             job_details = transcribe.get_transcription_job(TranscriptionJobName=job_name)
-            
-            # The URI is a standard HTTPS URL, not an S3 URI.
             https_uri = job_details['TranscriptionJob']['Transcript']['TranscriptFileUri']
             
-            # *** THE FIX IS HERE ***
-            # We use urlparse to correctly break down the HTTPS URL.
             parsed_url = urlparse(https_uri)
-            
-            # The bucket name is the first part of the path, and the key is the rest.
-            # Example path: /bucket-name/transcripts/job-name.json
             bucket = parsed_url.path.lstrip('/').split('/')[0]
             key = '/'.join(parsed_url.path.lstrip('/').split('/')[1:])
             
@@ -51,9 +46,64 @@ def handler(event, context):
             full_transcript = transcript_json['results']['transcripts'][0]['transcript']
             
             print("--- Full Transcript Retrieved Successfully ---")
-            print(full_transcript[:500] + "...") # Print first 500 chars
+            # The '...' is removed because we will now process the full text.
 
-            # --- TODO: Bedrock Integration ---
+            # ======================================================================
+            # --- ADDITION 2: Bedrock Integration Logic ---
+            # ======================================================================
+            
+            print("--- Sending transcript to Amazon Bedrock for summarization ---")
+            
+            # This is our prompt to the AI model. We are asking it to act as an assistant
+            # and extract specific, structured information from the transcript.
+            prompt = f"""
+            Human: You are a helpful meeting assistant. Please analyze the following meeting transcript and provide a summary in three distinct sections:
+
+            1.  **Summary:** A brief, one-paragraph summary of the meeting's purpose and key outcomes.
+            2.  **Key Decisions:** A bulleted list of all major decisions that were made.
+            3.  **Action Items:** A bulleted list of all specific action items, and who they were assigned to if mentioned.
+
+            Here is the transcript:
+            <transcript>
+            {full_transcript}
+            </transcript>
+
+            Assistant:
+            """
+
+            # Structure the request body according to the model's requirements
+            # (Claude 3 uses the "messages" format)
+            request_body = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 4096,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [{"type": "text", "text": prompt}]
+                    }
+                ]
+            }
+
+            # Invoke the model
+            model_id = 'anthropic.claude-3-sonnet-20240229-v1:0'
+            response = bedrock_runtime.invoke_model(
+                body=json.dumps(request_body),
+                contentType='application/json',
+                accept='application/json',
+                modelId=model_id
+            )
+
+            # Parse the response from the model
+            response_body = json.loads(response.get('body').read())
+            summary = response_body.get('content')[0].get('text')
+
+            print("--- Bedrock Summary Received Successfully ---")
+            print(summary)
+            print("---------------------------------------------")
+
+            # --- TODO ---
+            # 1. Store the `full_transcript` and `summary` in DynamoDB.
+            # 2. Send a notification via SNS containing the summary.
 
         except Exception as e:
             print(f"Error processing transcript for job '{job_name}': {e}")
@@ -61,5 +111,5 @@ def handler(event, context):
 
     return {
         'statusCode': 200,
-        'body': json.dumps(f"Successfully processed event for job: {job_name}")
+        'body': json.dumps(f"Successfully processed and summarized job: {job_name}")
     }

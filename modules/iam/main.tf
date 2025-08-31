@@ -84,6 +84,18 @@ data "aws_iam_policy_document" "lambda_permissions_policy" {
     # This permission is scoped to the specific role we want our Lambda to be able to pass.
     resources = [aws_iam_role.transcribe_service_role.arn]
   }
+
+   # --- NEW: PERMISSION FOR AMAZON BEDROCK ---
+  # Allows the Lambda function to invoke a foundation model.
+  statement {
+    effect = "Allow"
+    actions = [
+      "bedrock:InvokeModel"
+    ]
+    # Scoped to all foundation models in the specified region for simplicity.
+    # Can be restricted to a specific model ARN in a production environment.
+    resources = ["arn:aws:bedrock:*::foundation-model/*"]
+  }
 }
 
 # Create the IAM Policy resource from the policy document
