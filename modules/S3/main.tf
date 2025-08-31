@@ -73,15 +73,31 @@ resource "aws_s3_bucket_logging" "recordings" {
 
 # This is the key integration piece for our workflow.
 # It sends a notification to our SQS queue whenever a new audio file is uploaded.
-#resource "aws_s3_bucket_notification" "recordings_sqs_notification" {
-#  bucket = aws_s3_bucket.recordings.id
+resource "aws_s3_bucket_notification" "recordings_sqs_notification" {
+ bucket = aws_s3_bucket.recordings.id
 
- # queue {
- #   queue_arn     = var.sqs_queue_arn
-  #  events        = ["s3:ObjectCreated:*"]
-   # filter_suffix = "" # You can expand this or create multiple blocks for .wav, .m4a etc.
-  #}
+  queue {
+    queue_arn     = var.sqs_queue_arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_suffix = "" # You can expand this or create multiple blocks for .wav, .m4a etc.
+  }
 
-  # This depends on the SQS queue having a policy that allows S3 to send messages to it.
-  # We will create that policy in the SQS module.
-#}
+    # This depends on the SQS queue having a policy that allows S3 to send messages to it.
+    # We will create that policy in the SQS module.
+}
+# --- NEW: S3 to SQS Notification ---
+# This "linking" resource now lives in the root module for the environment.
+# It depends on both the S3 bucket and the SQS queue having been created.
+/*
+resource "aws_s3_bucket_notification" "recordings_sqs_notification" {
+  bucket = module.s3.recordings_bucket_id
+
+  queue {
+    queue_arn     = module.sqs.queue_arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_suffix = ".mp3"
+  }
+
+  # This resource implicitly depends on the aws_sqs_queue_policy created in the SQS module.
+  # Terraform is smart enough to see this relationship.
+}*/

@@ -67,18 +67,3 @@ module "lambda_function" {
 }
 
 
-# --- NEW: S3 to SQS Notification ---
-# This "linking" resource now lives in the root module for the environment.
-# It depends on both the S3 bucket and the SQS queue having been created.
-resource "aws_s3_bucket_notification" "recordings_sqs_notification" {
-  bucket = module.s3.recordings_bucket_id
-
-  queue {
-    queue_arn     = module.sqs.queue_arn
-    events        = ["s3:ObjectCreated:*"]
-    filter_suffix = ".mp3"
-  }
-
-  # This resource implicitly depends on the aws_sqs_queue_policy created in the SQS module.
-  # Terraform is smart enough to see this relationship.
-}
