@@ -30,7 +30,7 @@ module "s3" {
   project_name  = var.project_name
   environment   = var.environment
   tags          = var.tags
-# sqs_queue_arn = module.sqs.queue_arn # <-- UPDATED from placeholder
+ sqs_queue_arn = module.sqs.queue_arn # <-- UPDATED from placeholder
 }
 
 # --- SQS Queue for Processing Jobs ---
