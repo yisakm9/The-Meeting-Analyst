@@ -30,22 +30,14 @@ data "aws_iam_policy_document" "lambda_permissions_policy" {
   # Standard permissions for Lambda to write logs to CloudWatch
   statement {
     effect = "Allow"
-    actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents"
-    ]
+    actions = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"]
     resources = ["arn:aws:logs:*:*:*"] # Standard practice for basic logging
   }
 
   # Permissions to read and delete messages from our specific SQS queue
   statement {
     effect = "Allow"
-    actions = [
-      "sqs:ReceiveMessage",
-      "sqs:DeleteMessage",
-      "sqs:GetQueueAttributes"
-    ]
+    actions = ["sqs:ReceiveMessage","sqs:DeleteMessage","sqs:GetQueueAttributes"]
     resources = [var.sqs_processing_queue_arn]
   }
 
@@ -53,12 +45,9 @@ data "aws_iam_policy_document" "lambda_permissions_policy" {
   # The "/*" is important as permissions apply to objects *within* the bucket.
   statement {
     effect = "Allow"
-    actions = [
-      "s3:GetObject", # For reading the source audio
-      "s3:PutObject"  # For Transcribe to write the output transcript
-    ]
-    resources = ["${var.s3_recordings_bucket_arn}/*"]
-  }
+    actions = ["s3:GetObject","s3:PutObject"] # For reading the source audio
+    resources = ["${var.s3_recordings_bucket_arn}/*"]# For Transcribe to write the output transcript
+    }
 
   # --- NEW ---
   # Permission to start an Amazon Transcribe job.
@@ -68,7 +57,7 @@ data "aws_iam_policy_document" "lambda_permissions_policy" {
     effect    = "Allow"
     actions   = ["transcribe:StartTranscriptionJob",        # Start a transcription job (submit new job to Transcribe
                  "transcribe:GetTranscriptionJob",           # Retrieve the details and status of a specific transcription job
-                #"transcribe:ListTranscriptionJobs"         # List transcription jobs (useful for discovery or pagination
+                 #"transcribe:ListTranscriptionJobs",         # List transcription jobs (useful for discovery or pagination
                ]
     resources = ["*"]
   }
@@ -78,49 +67,39 @@ data "aws_iam_policy_document" "lambda_permissions_policy" {
   # to the Transcribe service itself. This is a required security measure.
   statement {
     effect = "Allow"
-    actions = [
-      "iam:PassRole"
-    ]
-    # This permission is scoped to the specific role we want our Lambda to be able to pass.
-    resources = [aws_iam_role.transcribe_service_role.arn]
+    actions = ["iam:PassRole"]
+    resources = [aws_iam_role.transcribe_service_role.arn] # This permission is scoped to the specific role we want our Lambda to be able to pass.
+    
   }
 
    # --- NEW: PERMISSION FOR AMAZON BEDROCK ---
   # Allows the Lambda function to invoke a foundation model.
   statement {
     effect = "Allow"
-    actions = [
-      "bedrock:InvokeModel"
-    ]
-    # Scoped to all foundation models in the specified region for simplicity.
-    # Can be restricted to a specific model ARN in a production environment.
-    resources = ["arn:aws:bedrock:*::foundation-model/*"]
-  }
+    actions = ["bedrock:InvokeModel"]
+    resources = ["arn:aws:bedrock:*::foundation-model/*"]   # Scoped to all foundation models in the specified region for simplicity.
+    }                                                       # Can be restricted to a specific model ARN in a production environment.
+    
+  
 
   # --- NEW: PERMISSION FOR DYNAMODB ---
   statement {
-    effect = "Allow"
-    actions = [
-      "dynamodb:PutItem" # Permission to create/update items in the table
-    ]
+    effect    = "Allow"
+    actions   = ["dynamodb:PutItem" ]            # Permission to create/update items in the table
     resources = [var.dynamodb_table_arn]
   }
 
   # Correct way to conditionally add the SNS:Publish permission
   dynamic "statement" {
-    # This for_each creates a list with one item if the condition is true,
-    # and an empty list if it's false. The dynamic block then iterates over it.
-    for_each = var.sns_topic_arn != "" ? [var.sns_topic_arn] : []
+        for_each = var.sns_topic_arn != "" ? [var.sns_topic_arn] : []
 
     content {
-      effect = "Allow"
-      actions = [
-        "sns:Publish"
-      ]
-      # statement.value is the value from the for_each list (the ARN itself)
-      resources = [statement.value]
-    }
+      effect     = "Allow"
+      actions    = [ "sns:Publish" ]
+      resources  = [statement.value] # statement.value is the value from the for_each list (the ARN itself)
+      }
   }
+
 }
 
 # Create the IAM Policy resource from the policy document
