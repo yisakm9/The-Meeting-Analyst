@@ -101,3 +101,5 @@ resource "aws_s3_bucket_notification" "recordings_sqs_notification" {
   # This resource implicitly depends on the aws_sqs_queue_policy created in the SQS module.
   # Terraform is smart enough to see this relationship.
 }*/
+
+
