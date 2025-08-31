@@ -72,6 +72,18 @@ data "aws_iam_policy_document" "lambda_permissions_policy" {
                ]
     resources = ["*"]
   }
+
+  # --- NEW ---
+  # Permission to allow this role to "pass" the Transcribe service role
+  # to the Transcribe service itself. This is a required security measure.
+  statement {
+    effect = "Allow"
+    actions = [
+      "iam:PassRole"
+    ]
+    # This permission is scoped to the specific role we want our Lambda to be able to pass.
+    resources = [aws_iam_role.transcribe_service_role.arn]
+  }
 }
 
 # Create the IAM Policy resource from the policy document
