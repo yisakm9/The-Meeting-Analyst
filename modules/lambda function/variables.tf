@@ -78,3 +78,9 @@ variable "transcribe_data_access_role_arn" { # <-- RENAMED
   description = "The ARN of the IAM role that Transcribe will assume for data access."
   type        = string
 }
+
+variable "dynamodb_table_name" {
+  description = "The name of the DynamoDB table."
+  type        = string
+  default     = "" # Default to empty string
+}

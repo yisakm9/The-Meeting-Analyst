@@ -3,17 +3,25 @@
 import json
 import boto3
 from urllib.parse import urlparse
+import os
 
 print('Loading function')
 
 s3 = boto3.client('s3')
 transcribe = boto3.client('transcribe')
 bedrock_runtime = boto3.client('bedrock-runtime')
+# --- ADDITION 1: DynamoDB Client ---
+# Using the resource client is often easier for item-level operations.
+dynamodb = boto3.resource('dynamodb')
+
+# --- ADDITION 2: Get DynamoDB Table Name from Environment ---
+DYNAMODB_TABLE_NAME = os.environ['DYNAMODB_TABLE_NAME']
+
 
 def handler(event, context):
     """
     This function is triggered by EventBridge, retrieves a transcript,
-    sends it to Amazon Bedrock using the Llama 3 model for summarization,
+    sends it to Amazon Bedrock for summarization, stores the results in DynamoDB,
     and logs the result.
     """
     print("Received event: " + json.dumps(event, indent=2))
@@ -44,14 +52,8 @@ def handler(event, context):
             
             print("--- Transcript Retrieved Successfully ---")
 
-            # ======================================================================
-            # --- MODIFICATION: Bedrock Integration for Llama 3 ---
-            # ======================================================================
-            
             print("--- Sending transcript to Amazon Bedrock (Llama 3) for summarization ---")
             
-            # Llama 3 uses a specific instruction format with special tokens.
-            # We construct the prompt with system, user, and assistant roles.
             prompt = f"""
 <|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
@@ -63,15 +65,10 @@ Please analyze the following transcript and generate the summary as requested:
 </transcript><|eot_id|><|start_header_id|>assistant<|end_header_id|>
 """
 
-            # Structure the request body according to the Llama 3 model's requirements
             request_body = {
-                "prompt": prompt,
-                "max_gen_len": 2048,  # Max tokens to generate
-                "temperature": 0.5,   # Controls randomness. 0.5 is a good balance.
-                "top_p": 0.9          # Nucleus sampling
+                "prompt": prompt, "max_gen_len": 2048, "temperature": 0.5, "top_p": 0.9
             }
 
-            # Invoke the Llama 3 model
             model_id = 'meta.llama3-70b-instruct-v1:0'
             response = bedrock_runtime.invoke_model(
                 body=json.dumps(request_body),
@@ -80,19 +77,43 @@ Please analyze the following transcript and generate the summary as requested:
                 modelId=model_id
             )
 
-            # Parse the response from the Llama 3 model
             response_body = json.loads(response.get('body').read())
-            summary = response_body.get('generation') # Llama 3's output is in the 'generation' key
+            summary = response_body.get('generation')
 
             print("--- Bedrock Llama 3 Summary Received Successfully ---")
             print(summary)
             print("-----------------------------------------------------")
 
+            # ======================================================================
+            # --- ADDITION 3: DynamoDB Integration Logic ---
+            # ======================================================================
+            
+            print(f"--- Writing transcript and summary to DynamoDB table: {DYNAMODB_TABLE_NAME} ---")
+
+            table = dynamodb.Table(DYNAMODB_TABLE_NAME)
+            
+            # The item to be stored. The job_name is our unique MeetingID.
+            item_to_store = {
+                'MeetingID': job_name, # Hash key for our table
+                'Transcript': full_transcript,
+                'Summary': summary,
+                'SourceS3Key': key,
+                'SourceS3Bucket': bucket,
+                'ProcessingStatus': 'COMPLETED'
+            }
+            
+            # Put the item into the table
+            table.put_item(Item=item_to_store)
+            
+            print("--- Successfully wrote item to DynamoDB ---")
+
+
         except Exception as e:
             print(f"Error processing job '{job_name}': {e}")
+            # Here you might want to update the DynamoDB item with a 'FAILED' status
             raise e
 
     return {
         'statusCode': 200,
-        'body': json.dumps(f"Successfully processed and summarized job: {job_name}")
+        'body': json.dumps(f"Successfully processed, summarized, and stored job: {job_name}")
     }

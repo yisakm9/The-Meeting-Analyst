@@ -66,6 +66,11 @@ resource "aws_lambda_function" "processor" {
   # environment {
   #   variables = { ... }
   # }
+  environment {
+    variables = {
+      DYNAMODB_TABLE_NAME = var.dynamodb_table_name
+    }
+  }
   
   tags = merge(
     var.tags,

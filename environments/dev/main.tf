@@ -16,6 +16,7 @@ module "iam" {
   tags                     = var.tags
   s3_recordings_bucket_arn = module.s3.recordings_bucket_arn
   sqs_processing_queue_arn = module.sqs.queue_arn
+  dynamodb_table_arn = module.dynamodb.table_arn # <-- NEW
 }
 
 
@@ -66,6 +67,14 @@ module "lambda_function" {
   processor_source_code_path   = "../../src/lambda_processor" 
   s3_output_bucket_name     = module.s3.recordings_bucket_id
   transcribe_data_access_role_arn  = module.iam.transcribe_data_access_role_arn # <-- RENAMED
+  dynamodb_table_name          = module.dynamodb.table_name # <-- NEW
 }
 
+# --- NEW: DynamoDB Table for Transcripts ---
+module "dynamodb" {
+  source = "../../modules/DynamoDB"
 
+  project_name = var.project_name
+  environment  = var.environment
+  tags         = var.tags
+}
