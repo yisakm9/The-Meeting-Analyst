@@ -2,13 +2,11 @@
 
 import json
 import boto3
-import urllib.parse
-import os
 
 print('Loading function')
 
 s3 = boto3.client('s3')
-transcribe = boto3.client('transcribe') # Add transcribe client
+transcribe = boto3.client('transcribe')
 
 def handler(event, context):
     """
@@ -17,32 +15,37 @@ def handler(event, context):
     """
     print("Received event: " + json.dumps(event, indent=2))
 
-    # The job status is in the event, handle failures gracefully
     job_status = event['detail']['TranscriptionJobStatus']
     job_name = event['detail']['TranscriptionJobName']
 
     if job_status == 'FAILED':
-        print(f"Transcription job '{job_name}' failed. Reason: {event['detail']['FailureReason']}")
-        # You could send a notification here or just stop processing
+        print(f"Transcription job '{job_name}' failed. Reason: {event['detail'].get('FailureReason', 'Unknown')}")
         return
 
     if job_status == 'COMPLETED':
         print(f"Transcription job '{job_name}' completed successfully.")
         
         try:
-            # *** FIX STARTS HERE ***
-            # Make an API call to get the full job details
             job_details = transcribe.get_transcription_job(TranscriptionJobName=job_name)
             
-            # The transcript URI is located within the response object
-            transcript_uri = job_details['TranscriptionJob']['Transcript']['TranscriptFileUri']
-            # *** FIX ENDS HERE ***
+            # *** THE FIX IS HERE ***
+            # Instead of parsing the complex URI, we use the direct fields from the API response.
+            # This is far more reliable.
+            transcript_reference = job_details['TranscriptionJob']['Transcript']
+            
+            # The API provides two ways to get the transcript. We prioritize the direct key.
+            if 'RedactedTranscriptFileUri' in transcript_reference:
+                # Handle redacted transcripts if you use that feature
+                transcript_uri = transcript_reference['RedactedTranscriptFileUri']
+            else:
+                transcript_uri = transcript_reference['TranscriptFileUri']
 
-            # The rest of the logic is the same as before
-            parsed_uri = urllib.parse.urlparse(transcript_uri)
-            bucket = parsed_uri.netloc
-            key = parsed_uri.path.lstrip('/')
-
+            # Let's parse the URI robustly this time, by splitting
+            # s3://bucket/key...
+            parts = transcript_uri.replace("s3://", "").split("/", 1)
+            bucket = parts[0]
+            key = parts[1]
+            
             print(f"Transcript for job '{job_name}' is located at: s3://{bucket}/{key}")
 
             response = s3.get_object(Bucket=bucket, Key=key)
