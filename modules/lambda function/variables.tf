@@ -74,8 +74,7 @@ variable "processor_handler" {
   default     = "index.handler"
 }
 
-
-variable "transcribe_service_role_arn" {
-  description = "The ARN of the IAM role that Transcribe will assume."
+variable "transcribe_data_access_role_arn" { # <-- RENAMED
+  description = "The ARN of the IAM role that Transcribe will assume for data access."
   type        = string
 }

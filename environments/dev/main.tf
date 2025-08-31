@@ -65,7 +65,7 @@ module "lambda_function" {
   source_code_path          = "../../src/lambda summarizer"
   processor_source_code_path   = "../../src/lambda_processor" 
   s3_output_bucket_name     = module.s3.recordings_bucket_id
-  transcribe_service_role_arn  = module.iam.transcribe_service_role_arn # <-- NEW
+  transcribe_data_access_role_arn  = module.iam.transcribe_data_access_role_arn # <-- RENAMED
 }
 
 

@@ -13,7 +13,7 @@ transcribe = boto3.client('transcribe')
 
 # Get environment variables
 OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET_NAME']
-TRANSCRIBE_ROLE_ARN = os.environ['TRANSCRIBE_ROLE_ARN'] # <-- NEW
+TRANSCRIBE_DATA_ACCESS_ROLE_ARN = os.environ['TRANSCRIBE_DATA_ACCESS_ROLE_ARN']
 
 def handler(event, context):
     """
@@ -31,21 +31,29 @@ def handler(event, context):
                 key = urllib.parse.unquote_plus(s3_record['s3']['object']['key'], encoding='utf-8')
                 
                 media_file_uri = f"s3://{bucket}/{key}"
-                job_name = f"transcription-job-{uuid.uuid4()}" # Create a unique job name
+                # Create a unique job name that is also a valid S3 object name
+                job_name = f"transcription-job-{uuid.uuid4()}"
 
                 print(f"Starting transcription job '{job_name}' for file: {media_file_uri}")
 
                 try:
-                    # Make the API call to start the transcription job
+                    # The DataAccessRoleArn must be nested inside JobExecutionSettings
+                    job_execution_settings = {
+                        'AllowRedirection': True, # Best practice when dealing with S3 URIs
+                        'DataAccessRoleArn': TRANSCRIBE_DATA_ACCESS_ROLE_ARN
+                    }
+
+                    # Make the API call to start the transcription job with the correct structure
                     transcribe.start_transcription_job(
                         TranscriptionJobName=job_name,
                         Media={'MediaFileUri': media_file_uri},
-                        MediaFormat=key.split('.')[-1],  # Assumes format is in file extension (e.g., mp3)
-                        LanguageCode='en-US', # Or make this configurable
+                        MediaFormat=key.split('.')[-1],
+                        LanguageCode='en-US',
                         OutputBucketName=OUTPUT_BUCKET,
-                        OutputKey=f"transcripts/{job_name}.json", # Save transcripts in a subfolder
-                        OutputAccessRole=TRANSCRIBE_ROLE_ARN # <-- ADD THIS LINE
+                        OutputKey=f"transcripts/{job_name}.json",
+                        JobExecutionSettings=job_execution_settings
                     )
+                    
                     print(f"Successfully started transcription job.")
 
                 except Exception as e:

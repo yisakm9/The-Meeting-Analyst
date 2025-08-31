@@ -25,3 +25,7 @@ output "lambda_summarizer_function_arn" {
   description = "The ARN of the summarizer Lambda function."
   value       = module.lambda_function.lambda_function_arn
 }
+output "transcribe_data_access_role_arn" { # <-- RENAMED
+  description = "The ARN of the IAM role for the Transcribe service."
+  value       = module.iam.transcribe_data_access_role_arn
+}
