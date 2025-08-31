@@ -23,6 +23,7 @@ resource "aws_lambda_function" "summarizer" {
   environment {
     variables = {
       OUTPUT_BUCKET_NAME = var.s3_output_bucket_name
+      TRANSCRIBE_ROLE_ARN = var.transcribe_service_role_arn # <-- NEW
     }
   }
   

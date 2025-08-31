@@ -13,6 +13,7 @@ transcribe = boto3.client('transcribe')
 
 # Get environment variables
 OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET_NAME']
+TRANSCRIBE_ROLE_ARN = os.environ['TRANSCRIBE_ROLE_ARN'] # <-- NEW
 
 def handler(event, context):
     """
@@ -42,7 +43,8 @@ def handler(event, context):
                         MediaFormat=key.split('.')[-1],  # Assumes format is in file extension (e.g., mp3)
                         LanguageCode='en-US', # Or make this configurable
                         OutputBucketName=OUTPUT_BUCKET,
-                        OutputKey=f"transcripts/{job_name}.json" # Save transcripts in a subfolder
+                        OutputKey=f"transcripts/{job_name}.json", # Save transcripts in a subfolder
+                        OutputAccessRole=TRANSCRIBE_ROLE_ARN # <-- ADD THIS LINE
                     )
                     print(f"Successfully started transcription job.")
 

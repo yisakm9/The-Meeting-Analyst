@@ -87,3 +87,49 @@ resource "aws_iam_role_policy_attachment" "attach_lambda_permissions" {
   policy_arn = aws_iam_policy.lambda_permissions_policy.arn
 }
 
+# --- NEW: IAM Role for the Transcribe Service ---
+
+# This trust policy allows the Transcribe service to assume the role.
+data "aws_iam_policy_document" "transcribe_assume_role_policy" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["transcribe.amazonaws.com"]
+    }
+  }
+}
+
+# Create the IAM role that Transcribe will assume.
+resource "aws_iam_role" "transcribe_service_role" {
+  name               = "${var.project_name}-transcribe-service-role-${var.environment}"
+  assume_role_policy = data.aws_iam_policy_document.transcribe_assume_role_policy.json
+  tags               = var.tags
+}
+
+# This policy grants the role permission to write objects (the transcripts)
+# to our specific S3 bucket.
+data "aws_iam_policy_document" "transcribe_permissions_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:PutObject"
+    ]
+    resources = ["${var.s3_recordings_bucket_arn}/transcripts/*"] # Be specific about the output path
+  }
+}
+
+# Create the IAM policy resource.
+resource "aws_iam_policy" "transcribe_permissions_policy" {
+  name   = "${var.project_name}-transcribe-permissions-policy-${var.environment}"
+  policy = data.aws_iam_policy_document.transcribe_permissions_policy.json
+  tags   = var.tags
+}
+
+# Attach the policy to the role.
+resource "aws_iam_role_policy_attachment" "attach_transcribe_permissions" {
+  role       = aws_iam_role.transcribe_service_role.name
+  policy_arn = aws_iam_policy.transcribe_permissions_policy.arn
+}

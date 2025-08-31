@@ -73,3 +73,9 @@ variable "processor_handler" {
   type        = string
   default     = "index.handler"
 }
+
+
+variable "transcribe_service_role_arn" {
+  description = "The ARN of the IAM role that Transcribe will assume."
+  type        = string
+}
