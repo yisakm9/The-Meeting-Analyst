@@ -1,0 +1,161 @@
+Of course. Here is the complete, updated, and professional `README.md` file that combines all the sections and uses the GitHub Actions deployment method as the primary set of instructions.
+
+You can copy and paste this entire block of text directly into the `README.md` file at the root of your project repository.
+
+---
+
+# The Meeting Analyst: An AI-Powered Serverless Transcription and Summarization Pipeline
+
+![AWS Architecture](https://user-images.githubusercontent.com/11383561/223467366-c9a8b1a3-2c13-4f10-985c-091f86950f11.png)
+
+This project is a complete, end-to-end, event-driven application built on AWS that automates the process of transcribing and summarizing audio recordings of meetings. It leverages a suite of serverless and managed AI services to create a scalable, resilient, and cost-effective solution.
+
+The entire infrastructure is defined using Terraform for repeatable, automated deployments and is structured for CI/CD integration with GitHub Actions.
+
+## Key Features
+
+-   **Automated Transcription:** Converts spoken words from audio files into accurate, searchable text using Amazon Transcribe.
+-   **Intelligent Summarization:** Uses a powerful Generative AI model (Meta Llama 3 via Amazon Bedrock) to extract a concise summary, key decisions, and a list of action items.
+-   **Serverless & Event-Driven:** Built entirely on serverless components, meaning there are no servers to manage, and you only pay for what you use.
+-   **Durable & Scalable:** Uses SQS and EventBridge to create a decoupled, asynchronous architecture that can handle spikes in workload and retry failed jobs.
+-   **On-Demand Access:** Stores the results in a DynamoDB table and makes them available via a secure, serverless HTTP API.
+-   **Infrastructure as Code (IaC):** The entire stack is defined in Terraform, enabling one-command deployments and easy teardown.
+
+## Architecture Deep Dive
+
+The system is composed of two primary, decoupled workflows:
+
+**1. Ingestion and Processing Pipeline:**
+```
+[User Uploads .mp3]
+       |
+       v
+[Amazon S3 Bucket] --(s3:ObjectCreated event)--> [Amazon SQS Queue]
+       |
+       v
+[AWS Lambda (A): Start Job] --(StartTranscriptionJob)--> [Amazon Transcribe]
+       |
+       v (Job Completes)
+[Amazon EventBridge] --(Rule: Transcribe Job State Change)--> [AWS Lambda (B): Process Result]
+       |
+       +----(GetTranscript)----> [Amazon S3 Bucket]
+       |
+       +----(InvokeModel with Transcript)----> [Amazon Bedrock (Llama 3)]
+       |
+       +----(PutItem with Summary)----> [Amazon DynamoDB Table]
+       |
+       +----(Publish Notification)----> [Amazon SNS Topic] --> [Email Subscription]
+```
+
+**2. Data Retrieval API:**
+```
+[User/Client] --(GET Request with MeetingID)--> [Amazon API Gateway]
+       |
+       v
+[AWS Lambda (C): Getter] --(GetItem)--> [Amazon DynamoDB Table]
+       |
+       v
+[Returns JSON Summary & Transcript]
+```
+
+## Technology Stack
+
+### AWS Services
+*   **Compute:** AWS Lambda
+*   **Storage:** Amazon S3 (Object Storage), Amazon DynamoDB (NoSQL Database)
+*   **AI / Machine Learning:** Amazon Transcribe (Speech-to-Text), Amazon Bedrock (Generative AI)
+*   **Integration & Messaging:** Amazon SQS (Queue), Amazon EventBridge (Event Bus), Amazon SNS (Notifications)
+*   **Networking & API:** Amazon API Gateway (HTTP API)
+*   **Security & Identity:** AWS IAM (Roles & Policies)
+
+### Infrastructure as Code
+*   **Terraform:** To define and manage all cloud resources.
+
+## Project Structure
+
+The repository is organized into three main directories:
+*   `/.github/workflows/`: Contains the GitHub Actions CI/CD pipeline definition (`deploy-dev.yml`).
+*   `/environments/dev/`: Contains the root Terraform configuration for the development environment. This is where modules are composed and deployed.
+*   `/modules/`: Contains reusable, modular Terraform configurations for each distinct service (S3, IAM, Lambda, etc.).
+*   `/src/`: Contains the Python source code for the three Lambda functions (`lambda_summarizer`, `lambda_processor`, `lambda_getter`).
+
+## Setup and Deployment (via GitHub Actions)
+
+This project is designed to be deployed automatically using a CI/CD pipeline with GitHub Actions. The entire process is managed through Infrastructure as Code, ensuring repeatable and reliable deployments.
+
+### Prerequisites
+
+1.  **AWS Account:** An active AWS account with the necessary permissions for an IAM user or role to create the resources defined in this project.
+2.  **Terraform Remote State Backend:**
+    *   Manually create a **globally unique S3 bucket** in your AWS account. This bucket will securely store the Terraform state file, which is essential for collaboration and CI/CD.
+    *   Open `environments/dev/backend.tf` and replace `your-globally-unique-terraform-state-bucket-name` with the name of the bucket you just created. Commit this change.
+3.  **GitHub Repository Secrets:**
+    *   In your GitHub repository, navigate to `Settings` > `Secrets and variables` > `Actions`.
+    *   Create two new repository secrets:
+        *   `AWS_ACCESS_KEY_ID`: The Access Key ID for your AWS IAM user.
+        *   `AWS_SECRET_ACCESS_KEY`: The Secret Access Key for your AWS IAM user.
+    > **Security Note:** For production environments, it is highly recommended to use GitHub's OIDC provider to configure a trust relationship with an AWS IAM Role instead of using long-lived IAM user credentials.
+4.  **Notification Email:**
+    *   Open `environments/dev/terraform.tfvars`.
+    *   Set the `subscription_email` variable to the email address where you want to receive notifications. Commit this change.
+
+### Deployment Workflow
+
+The deployment is handled by the `.github/workflows/deploy-dev.yml` workflow. This workflow will automatically trigger and deploy the infrastructure when changes are pushed to the `main` branch that affect the project directories.
+
+**To deploy the infrastructure for the first time:**
+
+1.  Ensure all prerequisites above are met.
+2.  Push all your committed changes to the `main` branch of your GitHub repository.
+3.  Navigate to the **Actions** tab in your repository. You will see the "Deploy Dev Infrastructure" workflow running.
+4.  The workflow will execute the following steps:
+    *   **Checkout:** Clones the repository code.
+    *   **Configure AWS Credentials:** Uses the secrets you created to authenticate with your AWS account.
+    *   **Setup Terraform:** Installs the Terraform CLI.
+    *   **Terraform Init:** Initializes the backend, downloading modules and providers.
+    *   **Terraform Plan:** Creates an execution plan and saves it to a file.
+    *   **Terraform Apply:** Applies the plan, creating or updating the resources in your AWS account.
+
+The workflow will run to completion, and your entire infrastructure will be live.
+
+### Confirm SNS Subscription
+
+After the first successful deployment:
+1.  Check the inbox of the email address you provided in `terraform.tfvars`.
+2.  You will receive an email from "AWS Notification" with a confirmation link.
+3.  **You must click this link to activate the subscription** and start receiving notifications from the pipeline.
+
+## How to Use
+
+### 1. Trigger the Pipeline
+Upload an MP3 audio file to the `meeting-analyst-recordings-dev` S3 bucket. You can do this via the AWS Console or the AWS CLI:
+```bash
+aws s3 cp /path/to/your/meeting.mp3 s3://meeting-analyst-recordings-dev/
+```
+This action will automatically trigger the entire transcription and summarization pipeline.
+
+### 2. Retrieve the Summary
+After a few minutes (depending on the length of the audio), the process will complete, and you will receive an email notification. The results are now stored in DynamoDB.
+
+Use the `api_endpoint` from the `terraform apply` output (or the GitHub Actions log) to query the results.
+
+1.  Get a `MeetingID` (e.g., `transcription-job-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) from the DynamoDB table or CloudWatch logs.
+2.  Make a GET request using `curl` or a web browser:
+
+```bash
+# Replace <api_endpoint> and <meeting_id> with your actual values
+curl <api_endpoint>/meetings/<meeting_id>
+```
+
+**Example:**
+bash
+curl https://muao5nc77k.execute-api.us-east-1.amazonaws.com/meetings/transcription-job-7eed296b-e733-4db3-bf02-1475bf901010
+```
+
+The API will return the complete record as a JSON object.
+
+## Future Enhancements
+*   **Web Front-End:** Develop a simple React/Vue front-end that allows users to upload files and view/search past summaries.
+*   **Error Handling:** Implement Dead-Letter Queues (DLQs) for the SQS queue and Lambda functions to handle processing failures gracefully.
+*   **Security Hardening:** Place Lambdas within a VPC and use VPC Endpoints to communicate with AWS services securely. Further tighten IAM policies by scoping them to specific resource ARNs where possible.
+*   **Multi-Format Support:** Update the `summarizer` Lambda to handle different audio formats (e.g., `.wav`, `.m4a`) and video files (`.mp4`).
