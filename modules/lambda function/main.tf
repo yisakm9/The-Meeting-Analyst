@@ -113,3 +113,40 @@ resource "aws_lambda_permission" "allow_eventbridge_to_invoke_processor" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.transcribe_job_state_change.arn
 }
+
+# --- NEW: Getter Lambda Function ---
+data "archive_file" "getter_package" {
+  type        = "zip"
+  source_dir  = var.getter_source_code_path
+  output_path = "${path.module}/getter_package.zip"
+}
+
+resource "aws_lambda_function" "getter" {
+  function_name    = "${var.project_name}-getter-${var.environment}"
+  role             = var.lambda_execution_role_arn
+  handler          = "index.handler"
+  runtime          = var.runtime
+  timeout          = 30 # A short timeout is fine for a simple DB lookup
+  memory_size      = 128
+  
+  filename         = data.archive_file.getter_package.output_path
+  source_code_hash = data.archive_file.getter_package.output_base64sha256
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE_NAME = var.dynamodb_table_name
+    }
+  }
+  tags = var.tags
+}
+
+# --- NEW: Permission for API Gateway to invoke this Lambda ---
+resource "aws_lambda_permission" "allow_apigateway_to_invoke_getter" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.getter.function_name
+  principal     = "apigateway.amazonaws.com"
+  
+  # This ARN locks down the permission to only our specific API
+  source_arn = "${var.api_execution_arn}/*/*"
+}

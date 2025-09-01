@@ -90,3 +90,12 @@ variable "sns_topic_arn" {
   type        = string
   default     = ""
 }
+
+variable "getter_source_code_path" {
+  description = "The local path to the getter Lambda's source code."
+  type        = string  
+}
+variable "api_execution_arn" {
+  description = "The ARN of the API Gateway execution role."
+  type        = string  
+}

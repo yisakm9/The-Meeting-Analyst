@@ -85,7 +85,7 @@ data "aws_iam_policy_document" "lambda_permissions_policy" {
   # --- NEW: PERMISSION FOR DYNAMODB ---
   statement {
     effect    = "Allow"
-    actions   = ["dynamodb:PutItem" ]            # Permission to create/update items in the table
+    actions   = ["dynamodb:PutItem", "dynamodb:GetItem" ]            # Permission to create/update items in the table and , THIS PERMISSION for the getter Lambda
     resources = [var.dynamodb_table_arn]
   }
 

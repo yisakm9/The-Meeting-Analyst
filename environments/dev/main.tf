@@ -70,6 +70,8 @@ module "lambda_function" {
   transcribe_data_access_role_arn  = module.iam.transcribe_data_access_role_arn # <-- RENAMED
   dynamodb_table_name          = module.dynamodb.table_name # <-- NEW
   sns_topic_arn                = module.sns.topic_arn 
+  getter_source_code_path        = "../../src/lambda_getter" # <-- NEW
+  api_execution_arn              = module.api_gateway.api_execution_arn # <-- NEW
 }
 
 # --- NEW: DynamoDB Table for Transcripts ---
@@ -89,4 +91,14 @@ module "sns" {
   environment                = var.environment
   tags                       = var.tags
   subscription_email_address = var.subscription_email # <-- From tfvars
+}
+
+# --- NEW: API GATEWAY MODULE ---
+module "api_gateway" {
+  source = "../../modules/api_gateway"
+
+  project_name             = var.project_name
+  environment              = var.environment
+  tags                     = var.tags
+  getter_lambda_invoke_arn = module.lambda_function.getter_lambda_invoke_arn # <-- NEW
 }
