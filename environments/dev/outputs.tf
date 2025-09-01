@@ -29,3 +29,8 @@ output "transcribe_data_access_role_arn" { # <-- RENAMED
   description = "The ARN of the IAM role for the Transcribe service."
   value       = module.iam.transcribe_data_access_role_arn
 }
+# --- NEW: API GATEWAY OUTPUT ---
+output "api_endpoint" {
+  description = "The invocation URL for the HTTP API."
+  value       = module.api_gateway.api_endpoint
+}
